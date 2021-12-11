@@ -1,3 +1,10 @@
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const router = new express.Router();
+const ExpressError = require('../expressError');
+const Message = require('../models/message');
+const { ensureCorrectUser, ensureLoggedIn, authenticateJWT } = require('../middleware/auth');
+
 /** GET /:id - get detail of message.
  *
  * => {message: {id,
@@ -11,6 +18,15 @@
  *
  **/
 
+router.get('/:id', authenticateJWT, ensureCorrectUser, async (req, res, next) => {
+    try {
+        const result = await Message.get(req.query.id);
+        return res.json({ message: result.rows[0] });
+    } catch (err) {
+        return next(err);
+    }
+});
+
 
 /** POST / - post message.
  *
@@ -18,6 +34,16 @@
  *   {message: {id, from_username, to_username, body, sent_at}}
  *
  **/
+
+router.post('/', ensureLoggedIn, async (req, res, next) => {
+    try {
+        const { to_username, body } = req.body;
+        const result = await Message.create({ from_username: req.user.username, to_username, body });
+        return res.json({ message: result.rows[0] });
+    } catch (err) {
+        return next(err);
+    }
+});
 
 
 /** POST/:id/read - mark message as read:
@@ -28,3 +54,14 @@
  *
  **/
 
+router.post('/:id/read', ensureCorrectUser, async (req, res, next) => {
+    try {
+        const result = await Message.markRead(req.query.id);
+        return res.json({ message: result.rows[0] });
+    } catch (err) {
+        return next(err);
+    }
+});
+
+
+module.exports = router;
